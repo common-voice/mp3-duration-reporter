@@ -1,0 +1,15 @@
+[package]
+name = "mp3-duration-reporter"
+description = "Report the duration of each MP3 in a directory full of them, and generate a total duration of the whole directory"
+repository = "https://github.com/marti4d/mp3-duration-reporter"
+version = "0.1.0"
+authors = ["Chris Martin <marti4d@live.ca>"]
+edition = "2018"
+license = "MIT"
+
+[dependencies]
+camino = "1.1"
+mp3-duration = "0.1"
+tokio = { version = "1.24", features = ["fs", "io-util", "macros", "rt", "rt-multi-thread", "sync"] }
+tracing = "0.1.37"
+tracing-subscriber = "0.3.16"
