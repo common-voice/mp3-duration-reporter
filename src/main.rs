@@ -46,6 +46,8 @@ async fn main() {
             .await
             .expect("path needs to exist");
 
+        let mut mp3_tasks = Vec::new();
+
         while let Some(entry) = dir_entries
             .next_entry()
             .await
@@ -56,33 +58,40 @@ async fn main() {
 
             if path.extension() == Some("mp3") {
                 let file_span = tracing::info_span!("file_span", "`{path}`");
+                let sender = sender.clone();
 
-                async {
-                    tracing::info!("reading mp3 file");
+                mp3_tasks.push(tokio::spawn(
+                    async move {
+                        tracing::info!("reading mp3 file");
 
-                    let mp3_bytes = tokio::fs::read(&path)
-                        .await
-                        .expect("failed to read mp3 file");
+                        let mp3_bytes = tokio::fs::read(&path)
+                            .await
+                            .expect("failed to read mp3 file");
 
-                    tracing::debug!("calculating duration");
+                        tracing::debug!("calculating duration");
 
-                    let duration: u64 = match mp3_duration::from_read(&mut mp3_bytes.as_slice()) {
-                        Ok(x) => x.as_millis().try_into().unwrap(),
-                        Err(e) => {
-                            tracing::error!("an error occurred on file `{path}`: {e}");
-                            0
-                        }
-                    };
+                        let duration: u64 = match mp3_duration::from_read(&mut mp3_bytes.as_slice())
+                        {
+                            Ok(x) => x.as_millis().try_into().unwrap(),
+                            Err(e) => {
+                                tracing::error!("an error occurred on file `{path}`: {e}");
+                                0
+                            }
+                        };
 
-                    tracing::debug!("duration: {duration}");
+                        tracing::debug!("duration: {duration}");
 
-                    sender.send((path, duration)).await.unwrap();
-                }
-                .instrument(file_span)
-                .await;
+                        sender.send((path, duration)).await.unwrap();
+                    }
+                    .instrument(file_span),
+                ));
             } else {
                 tracing::debug!("skipping file `{path}` (not an mp3)");
             }
+        }
+
+        for task in mp3_tasks.into_iter() {
+            task.await.unwrap();
         }
     });
 
