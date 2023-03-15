@@ -24,6 +24,7 @@ const OUT_FILE_NAME: &str = "times.txt";
 
 #[tokio::main]
 async fn main() {
+    // Controlled by environment. Use RUST_LOG
     tracing_subscriber::fmt::init();
 
     let path = Utf8PathBuf::from_path_buf(std::path::PathBuf::from(
@@ -63,11 +64,13 @@ async fn main() {
 
                     tracing::debug!("calculating duration");
 
-                    let duration: u64 = mp3_duration::from_read(&mut mp3_bytes.as_slice())
-                        .unwrap()
-                        .as_millis()
-                        .try_into()
-                        .unwrap();
+                    let duration: u64 = match mp3_duration::from_read(&mut mp3_bytes.as_slice()) {
+                        Ok(x) => x.as_millis().try_into().unwrap(),
+                        Err(e) => {
+                            tracing::error!("an error occurred on file `{path}`: {e}");
+                            0
+                        }
+                    };
 
                     tracing::debug!("duration: {duration}");
 
