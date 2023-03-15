@@ -79,7 +79,7 @@ async fn main() {
                         {
                             Ok(x) => x.as_millis().try_into().unwrap(),
                             Err(e) => {
-                                tracing::error!("an error occurred on file `{path}`: {e}");
+                                tracing::error!("an error occurred: {e}");
                                 0
                             }
                         };
