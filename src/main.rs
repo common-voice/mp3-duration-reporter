@@ -26,6 +26,7 @@ const OUT_FILE_NAME: &str = "times.txt";
 async fn main() {
     // Controlled by environment. Use RUST_LOG
     tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .with_writer(std::io::stderr)
         .init();
 
