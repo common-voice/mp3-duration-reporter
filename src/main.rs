@@ -40,6 +40,10 @@ async fn main() {
     tracing::info!("processing directory `{path}`");
     tracing::info!("output to file `{out_path}`");
 
+    let mut out_file = tokio::fs::File::create(&out_path)
+        .await
+        .expect("failed to create times file");
+
     let (sender, mut receiver) = tokio::sync::mpsc::channel(CHANNEL_LEN);
 
     let sender_task = tokio::spawn(async move {
@@ -95,10 +99,6 @@ async fn main() {
             task.await.unwrap();
         }
     });
-
-    let mut out_file = tokio::fs::File::create(&out_path)
-        .await
-        .expect("failed to create times file");
 
     let mut total = 0;
 
