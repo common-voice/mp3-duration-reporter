@@ -46,12 +46,10 @@ async fn main() {
 
     let (sender, mut receiver) = tokio::sync::mpsc::channel(CHANNEL_LEN);
 
-    let sender_task = tokio::spawn(async move {
+    tokio::spawn(async move {
         let mut dir_entries = tokio::fs::read_dir(&path)
             .await
             .expect("path needs to exist");
-
-        let mut mp3_tasks = Vec::new();
 
         while let Some(entry) = dir_entries
             .next_entry()
@@ -61,42 +59,38 @@ async fn main() {
             let path = Utf8PathBuf::from_path_buf(entry.path())
                 .expect("directory contained non-UTF-8 file");
 
-            if path.extension() == Some("mp3") {
-                let file_span = tracing::info_span!("file_span", "`{path}`");
-                let sender = sender.clone();
-
-                mp3_tasks.push(tokio::spawn(
-                    async move {
-                        tracing::info!("reading mp3 file");
-
-                        let mp3_bytes = tokio::fs::read(&path)
-                            .await
-                            .expect("failed to read mp3 file");
-
-                        tracing::debug!("calculating duration");
-
-                        let duration: u64 = match mp3_duration::from_read(&mut mp3_bytes.as_slice())
-                        {
-                            Ok(x) => x.as_millis().try_into().unwrap(),
-                            Err(e) => {
-                                tracing::error!("an error occurred: {e}");
-                                0
-                            }
-                        };
-
-                        tracing::debug!("duration: {duration}");
-
-                        sender.send((path, duration)).await.unwrap();
-                    }
-                    .instrument(file_span),
-                ));
-            } else {
+            if path.extension().map(|s| s.to_ascii_lowercase()).as_deref() != Some("mp3") {
                 tracing::debug!("skipping file `{path}` (not an mp3)");
+                continue;
             }
-        }
 
-        for task in mp3_tasks.into_iter() {
-            task.await.unwrap();
+            let file_span = tracing::debug_span!("file_span", "`{path}`");
+            let sender = sender.clone();
+
+            tokio::spawn(
+                async move {
+                    tracing::info!("reading mp3 file");
+
+                    let mp3_bytes = tokio::fs::read(&path)
+                        .await
+                        .expect("failed to read mp3 file");
+
+                    tracing::debug!("calculating duration");
+
+                    let duration: u64 = match mp3_duration::from_read(&mut mp3_bytes.as_slice()) {
+                        Ok(x) => x.as_millis().try_into().unwrap(),
+                        Err(e) => {
+                            tracing::error!("an error occurred: {e}");
+                            0
+                        }
+                    };
+
+                    tracing::debug!("duration: {duration}");
+
+                    sender.send((path, duration)).await.unwrap();
+                }
+                .instrument(file_span),
+            );
         }
     });
 
@@ -114,8 +108,6 @@ async fn main() {
 
         total += duration;
     }
-
-    sender_task.await.unwrap();
 
     tracing::info!("total: {total}");
     println!("{total}");
