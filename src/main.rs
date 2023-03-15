@@ -25,7 +25,9 @@ const OUT_FILE_NAME: &str = "times.txt";
 #[tokio::main]
 async fn main() {
     // Controlled by environment. Use RUST_LOG
-    tracing_subscriber::fmt::init();
+    tracing_subscriber::fmt()
+        .with_writer(std::io::stderr)
+        .init();
 
     let path = Utf8PathBuf::from_path_buf(std::path::PathBuf::from(
         std::env::args_os().nth(1).expect("expected directory path"),
