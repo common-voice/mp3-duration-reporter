@@ -20,7 +20,7 @@ use tracing::Instrument;
 const CHANNEL_LEN: usize = 1000000;
 
 /// The name of the output file
-const OUT_FILE_NAME: &str = "times.txt";
+const OUT_FILE_NAME: &str = "clip_durations.tsv";
 
 #[tokio::main]
 async fn main() {
@@ -43,6 +43,12 @@ async fn main() {
     let mut out_file = tokio::fs::File::create(&out_path)
         .await
         .expect("failed to create times file");
+
+    // write tsv header to out_file
+    out_file
+        .write(b"clip\tduration[ms]\n")
+        .await
+        .expect("failed to write header to file");
 
     let (sender, mut receiver) = tokio::sync::mpsc::channel(CHANNEL_LEN);
 
@@ -97,7 +103,7 @@ async fn main() {
     let mut total = 0;
 
     while let Some((path, duration)) = receiver.recv().await {
-        let line = format!("`{path}` = {duration}\n");
+        let line = format!("{filename}\t{duration}\n", filename = path.file_name().unwrap());
 
         tracing::debug!("writing \"`{path}` = {duration}\" to file");
 
